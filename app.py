@@ -66,6 +66,8 @@ class CurrencyConverterApp(tk.Tk):
         self.to_currency_var = tk.StringVar(value="EUR")
         self.company_result_var = tk.StringVar(value="")
         self.realtime_result_var = tk.StringVar(value="")
+        self.company_result_number_var = tk.StringVar(value="")
+        self.realtime_result_number_var = tk.StringVar(value="")
         self.company_rate_var = tk.StringVar(value="")
         self.realtime_rate_var = tk.StringVar(value="")
         self.status_var = tk.StringVar(value="准备就绪")
@@ -106,6 +108,8 @@ class CurrencyConverterApp(tk.Tk):
         style.configure("TButton", font=("Microsoft YaHei UI", 10), padding=(12, 8), borderwidth=0)
         style.configure("Accent.TButton", background=PALETTE["blue"], foreground="#ffffff", font=("Microsoft YaHei UI", 10, "bold"), padding=(16, 10), borderwidth=0)
         style.map("Accent.TButton", background=[("active", PALETTE["blue_dark"]), ("pressed", PALETTE["blue_dark"])], foreground=[("disabled", "#d7dde7")])
+        style.configure("Copy.TButton", background="#eef4fb", foreground=PALETTE["blue"], font=("Microsoft YaHei UI", 10, "bold"), padding=(10, 7), borderwidth=0)
+        style.map("Copy.TButton", background=[("active", "#dce8f4"), ("pressed", "#dce8f4")], foreground=[("disabled", "#9aa9bd")])
         style.configure("Swap.TButton", background="#ecf2f8", foreground=PALETTE["ink"], font=("Microsoft YaHei UI", 12, "bold"), padding=(12, 8), borderwidth=0)
         style.map("Swap.TButton", background=[("active", "#dce8f4"), ("pressed", "#dce8f4")])
 
@@ -153,14 +157,14 @@ class CurrencyConverterApp(tk.Tk):
         results.grid_columnconfigure(1, weight=1)
         results.grid_rowconfigure(0, weight=1)
 
-        self.create_result_card(results, 0, "公司固定汇率", self.company_result_var, self.company_rate_var, PALETTE["blue"], PALETTE["blue_soft"])
-        self.create_result_card(results, 1, "实时参考汇率", self.realtime_result_var, self.realtime_rate_var, PALETTE["green"], PALETTE["green_soft"])
+        self.create_result_card(results, 0, "公司固定汇率", self.company_result_var, self.company_result_number_var, self.company_rate_var, PALETTE["blue"], PALETTE["blue_soft"])
+        self.create_result_card(results, 1, "实时参考汇率", self.realtime_result_var, self.realtime_result_number_var, self.realtime_rate_var, PALETTE["green"], PALETTE["green_soft"])
 
         status_bar = ttk.Frame(root, style="Root.TFrame")
         status_bar.grid(row=3, column=0, sticky="ew", pady=(14, 0))
         ttk.Label(status_bar, textvariable=self.status_var, style="Status.TLabel").pack(side="left")
 
-    def create_result_card(self, parent, column, title, value_var, rate_var, accent, soft):
+    def create_result_card(self, parent, column, title, value_var, number_var, rate_var, accent, soft):
         card = tk.Frame(parent, bg=PALETTE["panel"], padx=20, pady=20, highlightthickness=1, highlightbackground=PALETTE["line"])
         card.grid(row=0, column=column, sticky="nsew", padx=(0, 10) if column == 0 else (10, 0))
         card.grid_columnconfigure(0, weight=1)
@@ -173,7 +177,11 @@ class CurrencyConverterApp(tk.Tk):
         ttk.Label(top, text=title, style="Title.TLabel").grid(row=0, column=1, sticky="w")
 
         tk.Frame(card, bg=soft, height=6).grid(row=1, column=0, sticky="ew", pady=(16, 20))
-        ttk.Label(card, textvariable=value_var, style="Value.TLabel", wraplength=320).grid(row=2, column=0, sticky="nw")
+        value_row = tk.Frame(card, bg=PALETTE["panel"])
+        value_row.grid(row=2, column=0, sticky="nsew")
+        value_row.grid_columnconfigure(0, weight=1)
+        ttk.Label(value_row, textvariable=value_var, style="Value.TLabel", wraplength=240).grid(row=0, column=0, sticky="nw")
+        ttk.Button(value_row, text="复制", style="Copy.TButton", command=lambda: self.copy_number(number_var)).grid(row=0, column=1, sticky="ne", padx=(12, 0), pady=(3, 0))
         ttk.Label(card, textvariable=rate_var, style="PanelBody.TLabel", wraplength=320).grid(row=3, column=0, sticky="sw", pady=(18, 0))
 
     def bind_events(self):
@@ -238,6 +246,8 @@ class CurrencyConverterApp(tk.Tk):
         except InvalidOperation:
             self.company_result_var.set("请输入有效金额")
             self.realtime_result_var.set("请输入有效金额")
+            self.company_result_number_var.set("")
+            self.realtime_result_number_var.set("")
             self.company_rate_var.set("")
             self.realtime_rate_var.set("")
             self.status_var.set("金额格式不正确")
@@ -246,6 +256,8 @@ class CurrencyConverterApp(tk.Tk):
         if amount < 0:
             self.company_result_var.set("金额不能为负数")
             self.realtime_result_var.set("金额不能为负数")
+            self.company_result_number_var.set("")
+            self.realtime_result_number_var.set("")
             self.company_rate_var.set("")
             self.realtime_rate_var.set("")
             self.status_var.set("金额不能为负数")
@@ -254,6 +266,8 @@ class CurrencyConverterApp(tk.Tk):
         if from_currency == to_currency or (from_currency != CNY and to_currency != CNY):
             self.company_result_var.set("请选择包含人民币的货币对")
             self.realtime_result_var.set("请选择包含人民币的货币对")
+            self.company_result_number_var.set("")
+            self.realtime_result_number_var.set("")
             self.company_rate_var.set("")
             self.realtime_rate_var.set("")
             self.status_var.set("货币对需要有一侧是人民币")
@@ -261,6 +275,7 @@ class CurrencyConverterApp(tk.Tk):
 
         company_value, company_rate_text = self.calculate_company(amount, from_currency, to_currency)
         self.company_result_var.set(self.format_result(company_value, to_currency))
+        self.company_result_number_var.set(self.format_number(company_value))
         self.company_rate_var.set(company_rate_text)
         self.fetch_realtime(amount, from_currency, to_currency)
 
@@ -284,6 +299,7 @@ class CurrencyConverterApp(tk.Tk):
         self.realtime_request_id += 1
         request_id = self.realtime_request_id
         self.realtime_result_var.set("获取中...")
+        self.realtime_result_number_var.set("")
         self.realtime_rate_var.set("")
         self.status_var.set("正在获取实时汇率")
 
@@ -320,6 +336,7 @@ class CurrencyConverterApp(tk.Tk):
             return
         result = money(amount * rate)
         self.realtime_result_var.set(self.format_result(result, to_currency))
+        self.realtime_result_number_var.set(self.format_number(result))
 
         inverse = (Decimal("1") / rate).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
         display_rate = rate.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
@@ -330,11 +347,25 @@ class CurrencyConverterApp(tk.Tk):
         if request_id != self.realtime_request_id:
             return
         self.realtime_result_var.set("实时汇率暂不可用")
+        self.realtime_result_number_var.set("")
         self.realtime_rate_var.set("请检查网络连接，或稍后重试。")
         self.status_var.set(f"实时汇率获取失败：{error}")
 
     def format_result(self, value, currency):
         return f"{value} {currency}"
+
+    def format_number(self, value):
+        return format(value, "f")
+
+    def copy_number(self, number_var):
+        number = number_var.get().strip()
+        if not number:
+            self.status_var.set("当前没有可复制的数字")
+            return
+        self.clipboard_clear()
+        self.clipboard_append(number)
+        self.update_idletasks()
+        self.status_var.set(f"已复制：{number}")
 
     def open_settings(self):
         window = tk.Toplevel(self)
