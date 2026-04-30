@@ -10,7 +10,7 @@
   - 1 USD = 6.6 CNY
   - 1 EUR = 7.2 CNY
   - 1 GBP = 8.9 CNY
-- 可在界面中修改公司汇率，配置保存在 `company_rates.json`。
+- 可在界面中修改公司汇率，配置保存在 `%APPDATA%\PortableCurrencyConverter\company_rates.json`。
 - 实时汇率使用 `https://api.frankfurter.dev/v1/latest?base=...&symbols=...`，无需 API Key。
 
 ## 运行

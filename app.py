@@ -1,18 +1,34 @@
 import json
+import os
+import sys
 import threading
 import urllib.error
 import urllib.parse
 import urllib.request
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
+
+if getattr(sys, "frozen", False):
+    frozen_root = Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent))
+    os.environ.setdefault("TCL_LIBRARY", str(frozen_root / "_tcl_data"))
+    os.environ.setdefault("TK_LIBRARY", str(frozen_root / "_tk_data"))
+
 import tkinter as tk
 from tkinter import messagebox, ttk
 
 
-APP_DIR = Path(__file__).resolve().parent
-CONFIG_PATH = APP_DIR / "company_rates.json"
-ICON_PATH = APP_DIR / "assets" / "app_icon.png"
-ICON_ICO_PATH = APP_DIR / "assets" / "app_icon.ico"
+if getattr(sys, "frozen", False):
+    APP_DIR = Path(sys.executable).resolve().parent
+    RESOURCE_DIR = Path(getattr(sys, "_MEIPASS", APP_DIR))
+else:
+    APP_DIR = Path(__file__).resolve().parent
+    RESOURCE_DIR = APP_DIR
+
+APP_CONFIG_DIR = Path(os.environ.get("APPDATA") or os.environ.get("LOCALAPPDATA") or Path.home()) / "PortableCurrencyConverter"
+CONFIG_PATH = APP_CONFIG_DIR / "company_rates.json"
+LEGACY_CONFIG_PATH = APP_DIR / "company_rates.json"
+ICON_PATH = RESOURCE_DIR / "assets" / "app_icon.png"
+ICON_ICO_PATH = RESOURCE_DIR / "assets" / "app_icon.ico"
 
 CNY = "CNY"
 CURRENCIES = {
@@ -190,12 +206,13 @@ class CurrencyConverterApp(tk.Tk):
         self.to_combo.bind("<<ComboboxSelected>>", lambda _: self.on_currency_changed("to"))
 
     def load_company_rates(self):
-        if not CONFIG_PATH.exists():
+        config_path = CONFIG_PATH if CONFIG_PATH.exists() else LEGACY_CONFIG_PATH
+        if not config_path.exists():
             self.save_company_rates(DEFAULT_COMPANY_RATES)
             return DEFAULT_COMPANY_RATES.copy()
 
         try:
-            data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+            data = json.loads(config_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return DEFAULT_COMPANY_RATES.copy()
 
@@ -207,9 +224,16 @@ class CurrencyConverterApp(tk.Tk):
                     rates[currency] = value
             except InvalidOperation:
                 pass
+        if config_path == LEGACY_CONFIG_PATH:
+            self.save_company_rates(rates)
+            try:
+                LEGACY_CONFIG_PATH.unlink()
+            except OSError:
+                pass
         return rates
 
     def save_company_rates(self, rates):
+        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
         CONFIG_PATH.write_text(json.dumps(rates, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def on_currency_changed(self, side):
