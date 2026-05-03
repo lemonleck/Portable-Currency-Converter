@@ -1,11 +1,18 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import sys
+from pathlib import Path
+
+
+PYTHON_ROOT = Path(sys.base_prefix)
+TK_DLL_DIR = PYTHON_ROOT / 'DLLs'
+TCL_DIR = PYTHON_ROOT / 'tcl'
 
 a = Analysis(
     ['app.py'],
     pathex=[],
-    binaries=[('C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\DLLs\\tcl86t.dll', '.'), ('C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\DLLs\\tk86t.dll', '.')],
-    datas=[('assets', 'assets'), ('C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tcl8.6', '_tcl_data'), ('C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tk8.6', '_tk_data')],
+    binaries=[(str(TK_DLL_DIR / 'tcl86t.dll'), '.'), (str(TK_DLL_DIR / 'tk86t.dll'), '.')],
+    datas=[('assets', 'assets'), (str(TCL_DIR / 'tcl8.6'), '_tcl_data'), (str(TCL_DIR / 'tk8.6'), '_tk_data')],
     hiddenimports=[],
     hookspath=['build_hooks'],
     hooksconfig={},
