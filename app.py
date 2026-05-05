@@ -6,7 +6,6 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import ctypes
-import csv
 import zipfile
 from datetime import datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -120,10 +119,10 @@ def money(value):
 class CurrencyConverterApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.dpi_scale = max(1.0, self.winfo_fpixels("1i") / 96)
+        self.dpi_scale = 1.0
         self.title("便携汇率转换工具")
-        self.geometry(self.scaled_geometry(1040, 760))
-        self.minsize(self.scaled(940), self.scaled(680))
+        self.geometry(self.scaled_geometry(980, 700))
+        self.minsize(self.scaled(860), self.scaled(600))
 
         self.icon_image = None
         self.load_app_icon()
@@ -150,7 +149,6 @@ class CurrencyConverterApp(tk.Tk):
         self.realtime_rate_var = tk.StringVar(value="")
         self.risk_title_var = tk.StringVar(value="等待实时汇率")
         self.risk_detail_var = tk.StringVar(value="完成一次实时汇率刷新后，这里会显示差额、手续费和报价风险。")
-        self.note_var = tk.StringVar(value="")
         self.history_search_var = tk.StringVar(value="")
         self.status_var = tk.StringVar(value="准备就绪")
         self.status_time_var = tk.StringVar(value="")
@@ -201,14 +199,14 @@ class CurrencyConverterApp(tk.Tk):
         style.configure("Shell.TFrame", background=PALETTE["shell"])
         style.configure("Sidebar.TFrame", background=PALETTE["sidebar"])
         style.configure("Panel.TFrame", background=PALETTE["panel"])
-        style.configure("Header.TLabel", background=PALETTE["shell"], foreground=PALETTE["ink"], font=("Microsoft YaHei UI", 28, "bold"))
+        style.configure("Header.TLabel", background=PALETTE["shell"], foreground=PALETTE["ink"], font=("Microsoft YaHei UI", 26, "bold"))
         style.configure("AppTitle.TLabel", background=PALETTE["sidebar"], foreground=PALETTE["ink"], font=("Microsoft YaHei UI", 12))
         style.configure("Title.TLabel", background=PALETTE["panel"], foreground=PALETTE["ink"], font=("Microsoft YaHei UI", 12, "bold"))
         style.configure("Body.TLabel", background=PALETTE["shell"], foreground=PALETTE["muted"], font=("Microsoft YaHei UI", 11))
         style.configure("SidebarBody.TLabel", background=PALETTE["sidebar"], foreground=PALETTE["muted"], font=("Microsoft YaHei UI", 10))
         style.configure("PanelBody.TLabel", background=PALETTE["panel"], foreground=PALETTE["muted"], font=("Microsoft YaHei UI", 10))
-        style.configure("Value.TLabel", background=PALETTE["panel"], foreground=PALETTE["ink"], font=("Microsoft YaHei UI", 26, "bold"))
-        style.configure("Risk.TLabel", background=PALETTE["panel"], foreground=PALETTE["ink"], font=("Microsoft YaHei UI", 16, "bold"))
+        style.configure("Value.TLabel", background=PALETTE["panel"], foreground=PALETTE["ink"], font=("Microsoft YaHei UI", 24, "bold"))
+        style.configure("Risk.TLabel", background=PALETTE["panel"], foreground=PALETTE["ink"], font=("Microsoft YaHei UI", 15, "bold"))
         style.configure("Status.TLabel", background=PALETTE["sidebar"], foreground=PALETTE["muted"], font=("Microsoft YaHei UI", 10))
         style.configure("TEntry", padding=(12, 9), fieldbackground="#ffffff", bordercolor=PALETTE["line"], lightcolor=PALETTE["line"])
         style.configure("TCombobox", padding=(12, 9), fieldbackground="#ffffff", bordercolor=PALETTE["line"], arrowcolor=PALETTE["ink"])
@@ -223,13 +221,13 @@ class CurrencyConverterApp(tk.Tk):
     def create_widgets(self):
         root = ttk.Frame(self, style="Shell.TFrame")
         root.pack(fill="both", expand=True)
-        root.grid_columnconfigure(0, minsize=self.scaled(210))
+        root.grid_columnconfigure(0, minsize=self.scaled(188))
         root.grid_columnconfigure(1, weight=1)
         root.grid_rowconfigure(0, weight=1)
 
         sidebar = tk.Frame(root, bg=PALETTE["sidebar"], highlightthickness=1, highlightbackground=PALETTE["line"])
         sidebar.grid(row=0, column=0, sticky="nsew")
-        sidebar.configure(width=self.scaled(210))
+        sidebar.configure(width=self.scaled(188))
         sidebar.grid_propagate(False)
         sidebar.grid_columnconfigure(0, weight=1)
         sidebar.grid_rowconfigure(5, weight=1)
@@ -243,26 +241,27 @@ class CurrencyConverterApp(tk.Tk):
         self.nav_buttons = {}
         self.create_nav_button(sidebar, "quote", "⇄", "汇率转换", 1, command=lambda: self.show_view("quote"))
         self.create_nav_button(sidebar, "history", "◷", "历史记录", 2, command=lambda: self.show_view("history"))
-        self.create_nav_button(sidebar, "rates", "▥", "公司汇率", 3, command=self.open_settings)
-        self.create_nav_button(sidebar, "settings", "⚙", "设置", 4, command=self.open_settings)
+        self.create_nav_button(sidebar, "settings", "⚙", "设置", 3, command=self.open_settings)
 
         status_box = ttk.Frame(sidebar, style="Sidebar.TFrame", padding=(26, 0, 20, 30))
         status_box.grid(row=6, column=0, sticky="sew")
         ttk.Label(status_box, textvariable=self.status_var, style="Status.TLabel", wraplength=self.scaled(150)).pack(anchor="w")
         ttk.Label(status_box, textvariable=self.status_time_var, style="Status.TLabel", wraplength=self.scaled(150)).pack(anchor="w", pady=(6, 0))
 
-        content = ttk.Frame(root, style="Shell.TFrame", padding=(44, 38, 44, 34))
+        content = ttk.Frame(root, style="Shell.TFrame", padding=(30, 26, 30, 24))
         content.grid(row=0, column=1, sticky="nsew")
         content.grid_columnconfigure(0, weight=1)
         content.grid_rowconfigure(0, weight=1)
 
         self.quote_view = ttk.Frame(content, style="Shell.TFrame")
         self.history_view = ttk.Frame(content, style="Shell.TFrame")
-        for view in (self.quote_view, self.history_view):
+        self.settings_view = ttk.Frame(content, style="Shell.TFrame")
+        for view in (self.quote_view, self.history_view, self.settings_view):
             view.grid(row=0, column=0, sticky="nsew")
 
         self.create_quote_view(self.quote_view)
         self.create_history_tab(self.history_view)
+        self.create_settings_view(self.settings_view)
         self.show_view("quote")
 
     def create_nav_button(self, parent, key, icon, text, row, command):
@@ -291,6 +290,8 @@ class CurrencyConverterApp(tk.Tk):
             if self.history_dirty:
                 self.refresh_history_view()
                 self.history_dirty = False
+        elif view == "settings":
+            self.settings_view.tkraise()
         else:
             self.quote_view.tkraise()
         self.update_nav_buttons()
@@ -312,30 +313,28 @@ class CurrencyConverterApp(tk.Tk):
         header.grid(row=0, column=0, sticky="ew")
         header.grid_columnconfigure(0, weight=1)
         ttk.Label(header, text="汇率转换", style="Header.TLabel").grid(row=0, column=0, sticky="w")
-        ttk.Label(header, text="人民币与外币双向转换，同时查看公司报价汇率与实时参考汇率。", style="Body.TLabel").grid(row=1, column=0, sticky="w", pady=(10, 0))
-        ttk.Button(header, text="⚙  设置公司汇率", style="Copy.TButton", command=self.open_settings).grid(row=0, column=1, rowspan=2, sticky="e")
+        ttk.Label(header, text="人民币与外币双向转换，同时查看公司报价汇率与实时参考汇率。", style="Body.TLabel").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Button(header, text="⚙  设置", style="Copy.TButton", command=self.open_settings).grid(row=0, column=1, rowspan=2, sticky="e")
 
-        input_panel = tk.Frame(parent, bg=PALETTE["panel"], padx=26, pady=24, highlightthickness=1, highlightbackground=PALETTE["line"])
-        input_panel.grid(row=1, column=0, sticky="ew", pady=(34, 24))
-        for column in (0, 1, 3, 4):
+        input_panel = tk.Frame(parent, bg=PALETTE["panel"], padx=20, pady=16, highlightthickness=1, highlightbackground=PALETTE["line"])
+        input_panel.grid(row=1, column=0, sticky="ew", pady=(20, 16))
+        for column in (0, 1, 3):
             input_panel.grid_columnconfigure(column, weight=1)
-        input_panel.grid_columnconfigure(2, minsize=70)
-        input_panel.grid_columnconfigure(5, minsize=96)
+        input_panel.grid_columnconfigure(2, minsize=64)
+        input_panel.grid_columnconfigure(4, minsize=104)
 
         ttk.Label(input_panel, text="金额", style="PanelBody.TLabel").grid(row=0, column=0, sticky="w")
         ttk.Label(input_panel, text="源货币", style="PanelBody.TLabel").grid(row=0, column=1, sticky="w", padx=(18, 0))
         ttk.Label(input_panel, text="目标货币", style="PanelBody.TLabel").grid(row=0, column=3, sticky="w")
-        ttk.Label(input_panel, text="备注", style="PanelBody.TLabel").grid(row=0, column=4, sticky="w", padx=(18, 0))
 
-        ttk.Entry(input_panel, textvariable=self.amount_var, font=("Microsoft YaHei UI", 18), width=15).grid(row=1, column=0, sticky="ew", pady=(12, 0), padx=(0, 18), ipady=4)
+        ttk.Entry(input_panel, textvariable=self.amount_var, font=("Microsoft YaHei UI", 17), width=12).grid(row=1, column=0, sticky="ew", pady=(10, 0), padx=(0, 14), ipady=3)
         currency_values = [self.currency_label(code) for code in CURRENCIES]
         self.from_combo = ttk.Combobox(input_panel, textvariable=self.from_currency_var, values=currency_values, state="readonly", font=("Microsoft YaHei UI", 12))
-        self.from_combo.grid(row=1, column=1, sticky="ew", pady=(12, 0), padx=(18, 12), ipady=4)
-        ttk.Button(input_panel, text="⇄", style="Swap.TButton", width=4, command=self.swap_currencies).grid(row=1, column=2, pady=(12, 0))
+        self.from_combo.grid(row=1, column=1, sticky="ew", pady=(10, 0), padx=(14, 10), ipady=3)
+        ttk.Button(input_panel, text="⇄", style="Swap.TButton", width=4, command=self.swap_currencies).grid(row=1, column=2, pady=(10, 0))
         self.to_combo = ttk.Combobox(input_panel, textvariable=self.to_currency_var, values=currency_values, state="readonly", font=("Microsoft YaHei UI", 12))
-        self.to_combo.grid(row=1, column=3, sticky="ew", pady=(12, 0), padx=(12, 0), ipady=4)
-        ttk.Entry(input_panel, textvariable=self.note_var, font=("Microsoft YaHei UI", 11), width=18).grid(row=1, column=4, sticky="ew", pady=(12, 0), padx=(18, 0), ipady=4)
-        ttk.Button(input_panel, text="刷新实时", style="Copy.TButton", command=self.refresh_realtime_now).grid(row=1, column=5, sticky="ew", pady=(12, 0), padx=(18, 0))
+        self.to_combo.grid(row=1, column=3, sticky="ew", pady=(10, 0), padx=(10, 0), ipady=3)
+        ttk.Button(input_panel, text="刷新实时", style="Copy.TButton", command=self.refresh_realtime_now).grid(row=1, column=4, sticky="ew", pady=(10, 0), padx=(16, 0))
 
         body = ttk.Frame(parent, style="Shell.TFrame")
         body.grid(row=2, column=0, sticky="nsew")
@@ -353,8 +352,8 @@ class CurrencyConverterApp(tk.Tk):
         self.create_risk_panel(body)
 
     def create_result_card(self, parent, column, title, value_var, number_var, rate_var, accent, soft):
-        card = tk.Frame(parent, bg=PALETTE["panel"], padx=24, pady=24, highlightthickness=1, highlightbackground=PALETTE["line"])
-        card.grid(row=0, column=column, sticky="nsew", padx=(0, 16) if column == 0 else (16, 0))
+        card = tk.Frame(parent, bg=PALETTE["panel"], padx=22, pady=18, highlightthickness=1, highlightbackground=PALETTE["line"])
+        card.grid(row=0, column=column, sticky="nsew", padx=(0, 10) if column == 0 else (10, 0))
         card.grid_columnconfigure(0, weight=1)
         card.grid_rowconfigure(2, weight=1)
 
@@ -363,22 +362,23 @@ class CurrencyConverterApp(tk.Tk):
         top.grid_columnconfigure(0, weight=1)
         ttk.Label(top, text=title, style="Title.TLabel").grid(row=0, column=0, sticky="w")
 
-        tk.Frame(card, bg=accent, height=2).grid(row=1, column=0, sticky="ew", pady=(18, 24))
+        tk.Frame(card, bg=accent, height=2).grid(row=1, column=0, sticky="ew", pady=(14, 18))
         value_row = tk.Frame(card, bg=PALETTE["panel"])
         value_row.grid(row=2, column=0, sticky="nsew")
         value_row.grid_columnconfigure(0, weight=1)
         value_label = ttk.Label(value_row, textvariable=value_var, style="Value.TLabel", wraplength=360)
-        value_label.grid(row=0, column=0, sticky="nw")
+        value_label.grid(row=0, column=0, sticky="ew")
         if accent == PALETTE["blue"]:
             value_label.configure(foreground=PALETTE["blue"])
         else:
             value_label.configure(foreground=PALETTE["green"])
-        ttk.Button(value_row, text="复制", style="Copy.TButton", command=lambda: self.copy_number(number_var)).grid(row=0, column=1, sticky="ne", padx=(12, 0), pady=(3, 0))
-        ttk.Label(card, textvariable=rate_var, style="PanelBody.TLabel", wraplength=420).grid(row=3, column=0, sticky="sw", pady=(22, 0))
+        ttk.Button(value_row, text="复制", style="Copy.TButton", command=lambda: self.copy_number(number_var)).grid(row=1, column=0, sticky="w", pady=(10, 0))
+        ttk.Label(card, textvariable=rate_var, style="PanelBody.TLabel", wraplength=330).grid(row=3, column=0, sticky="sw", pady=(18, 0))
 
     def create_risk_panel(self, parent):
         panel = tk.Frame(parent, bg=PALETTE["panel"], padx=22, pady=18, highlightthickness=1, highlightbackground=PALETTE["line"])
         panel.grid(row=1, column=0, sticky="ew", pady=(18, 0))
+        self.risk_panel = panel
         panel.grid_columnconfigure(0, weight=1)
 
         top = tk.Frame(panel, bg=PALETTE["panel"])
@@ -388,9 +388,7 @@ class CurrencyConverterApp(tk.Tk):
         actions = ttk.Frame(top, style="Panel.TFrame")
         actions.grid(row=0, column=1, sticky="e")
         ttk.Button(actions, text="复制报价文本", style="Copy.TButton", command=self.copy_quote_text).pack(side="left", padx=(0, 8))
-        ttk.Button(actions, text="导出 CSV", style="Copy.TButton", command=self.export_csv).pack(side="left", padx=(0, 8))
         ttk.Button(actions, text="导出 Excel", style="Copy.TButton", command=self.export_excel).pack(side="left", padx=(0, 8))
-        ttk.Button(actions, text="导出 PDF", style="Copy.TButton", command=self.export_pdf).pack(side="left")
 
         ttk.Label(panel, textvariable=self.risk_detail_var, style="PanelBody.TLabel", wraplength=980, justify="left").grid(row=1, column=0, sticky="ew", pady=(12, 0))
 
@@ -417,7 +415,7 @@ class CurrencyConverterApp(tk.Tk):
         table_frame.grid_columnconfigure(0, weight=1)
         table_frame.grid_rowconfigure(0, weight=1)
 
-        columns = ("time", "pair", "amount", "company", "realtime", "net", "risk", "note")
+        columns = ("time", "pair", "amount", "company", "realtime", "net", "risk")
         self.history_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=12)
         headings = {
             "time": "时间",
@@ -427,9 +425,8 @@ class CurrencyConverterApp(tk.Tk):
             "realtime": "实时参考",
             "net": "净收益/损失",
             "risk": "风险",
-            "note": "备注",
         }
-        widths = {"time": 150, "pair": 90, "amount": 110, "company": 130, "realtime": 130, "net": 130, "risk": 90, "note": 180}
+        widths = {"time": 150, "pair": 90, "amount": 110, "company": 140, "realtime": 140, "net": 130, "risk": 100}
         for col in columns:
             self.history_tree.heading(col, text=headings[col])
             self.history_tree.column(col, width=widths[col], anchor="w")
@@ -440,7 +437,6 @@ class CurrencyConverterApp(tk.Tk):
 
     def bind_events(self):
         self.amount_var.trace_add("write", lambda *_: self.schedule_recalculate())
-        self.note_var.trace_add("write", lambda *_: self.update_current_note())
         self.history_search_var.trace_add("write", lambda *_: self.schedule_history_refresh())
         self.from_combo.bind("<<ComboboxSelected>>", lambda _: self.on_currency_changed("from"))
         self.to_combo.bind("<<ComboboxSelected>>", lambda _: self.on_currency_changed("to"))
@@ -449,6 +445,14 @@ class CurrencyConverterApp(tk.Tk):
         if self.recalculate_after_id is not None:
             self.after_cancel(self.recalculate_after_id)
         self.recalculate_after_id = self.after(250, self.run_scheduled_recalculate)
+
+    def set_risk_panel_visible(self, visible):
+        if not hasattr(self, "risk_panel"):
+            return
+        if visible:
+            self.risk_panel.grid()
+        else:
+            self.risk_panel.grid_remove()
 
     def run_scheduled_recalculate(self):
         self.recalculate_after_id = None
@@ -608,6 +612,7 @@ class CurrencyConverterApp(tk.Tk):
         self.company_result_var.set(self.format_result(company_value, to_currency))
         self.company_result_number_var.set(self.format_number(company_value))
         self.company_rate_var.set(company_rate_text)
+        self.set_risk_panel_visible(to_currency != CNY)
         self.risk_title_var.set("等待实时汇率")
         self.risk_detail_var.set("实时汇率返回后会自动计算差额、手续费和净收益。")
         if self.settings.get("auto_refresh", True):
@@ -704,11 +709,15 @@ class CurrencyConverterApp(tk.Tk):
     def show_realtime_error(self, request_id, error):
         if request_id != self.realtime_request_id:
             return
+        from_currency = self.currency_code(self.from_currency_var.get())
+        to_currency = self.currency_code(self.to_currency_var.get())
         self.realtime_result_var.set("实时汇率暂不可用")
         self.realtime_result_number_var.set("")
         self.realtime_rate_var.set("请检查网络连接，或稍后重试。")
-        self.risk_title_var.set("无法分析报价风险")
-        self.risk_detail_var.set("实时汇率不可用，无法折算手续费和判断净收益。")
+        self.set_risk_panel_visible(to_currency != CNY)
+        if to_currency != CNY:
+            self.risk_title_var.set("无法分析报价风险")
+            self.risk_detail_var.set("实时汇率不可用，无法折算手续费和判断净收益。")
         self.status_var.set(f"实时汇率获取失败：{error}")
         self.status_time_var.set("")
 
@@ -716,6 +725,30 @@ class CurrencyConverterApp(tk.Tk):
         company_value, _ = self.calculate_company(amount, from_currency, to_currency)
         foreign = to_currency if from_currency == CNY else from_currency
         foreign_to_cny = Decimal("1") / realtime_rate if from_currency == CNY else realtime_rate
+
+        if to_currency == CNY:
+            self.set_risk_panel_visible(False)
+            self.current_record = {
+                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "amount": self.format_number(amount),
+                "from_currency": from_currency,
+                "to_currency": to_currency,
+                "company_result": self.format_currency(company_value, to_currency),
+                "realtime_result": self.format_currency(realtime_value, to_currency),
+                "company_rate": self.company_rate_var.get(),
+                "realtime_rate": self.realtime_rate_var.get(),
+                "quote_diff_cny": "",
+                "difference_percent": "",
+                "fee_foreign": "",
+                "fee_cny": "",
+                "net_cny": "不计算",
+                "risk": "不计算",
+                "updated_at": self.last_realtime_at,
+            }
+            self.add_history_record(self.current_record)
+            return
+
+        self.set_risk_panel_visible(True)
         fee_foreign = Decimal(str(self.settings.get("fee_amount", "30")))
         fee_cny = fee_foreign * foreign_to_cny
 
@@ -755,7 +788,6 @@ class CurrencyConverterApp(tk.Tk):
             "net_cny": self.format_currency(net_cny, CNY),
             "risk": risk_text,
             "updated_at": self.last_realtime_at,
-            "note": self.note_var.get().strip(),
         }
         self.add_history_record(self.current_record)
 
@@ -794,10 +826,6 @@ class CurrencyConverterApp(tk.Tk):
         self.update_idletasks()
         self.status_var.set(f"已复制：{number}")
 
-    def update_current_note(self):
-        if self.current_record is not None:
-            self.current_record["note"] = self.note_var.get().strip()
-
     def add_history_record(self, record):
         signature = (record["amount"], record["from_currency"], record["to_currency"], record["company_result"], record["realtime_result"])
         if self.history:
@@ -833,7 +861,6 @@ class CurrencyConverterApp(tk.Tk):
                 record.get("realtime_result", ""),
                 record.get("net_cny", ""),
                 record.get("risk", ""),
-                record.get("note", ""),
             ))
 
     def reuse_selected_history(self):
@@ -845,7 +872,6 @@ class CurrencyConverterApp(tk.Tk):
         self.amount_var.set(str(record.get("amount", "0")).replace(",", ""))
         self.set_currency(self.from_currency_var, record.get("from_currency", "CNY"))
         self.set_currency(self.to_currency_var, record.get("to_currency", "EUR"))
-        self.note_var.set(record.get("note", ""))
         self.status_var.set("已载入历史记录")
         self.recalculate()
 
@@ -875,7 +901,6 @@ class CurrencyConverterApp(tk.Tk):
             f"净收益/损失：{record['net_cny']}",
             f"风险判断：{record['risk']}",
             f"实时汇率日期：{record['updated_at']}",
-            f"备注：{record['note']}",
         ])
 
     def copy_quote_text(self):
@@ -887,26 +912,6 @@ class CurrencyConverterApp(tk.Tk):
         self.clipboard_append(text)
         self.update_idletasks()
         self.status_var.set("报价文本已复制")
-
-    def export_csv(self):
-        if not self.current_record:
-            self.status_var.set("当前没有可导出的报价分析")
-            return
-        path = filedialog.asksaveasfilename(
-            parent=self,
-            defaultextension=".csv",
-            filetypes=[("CSV 文件", "*.csv")],
-            initialfile=f"汇率报价分析_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-        )
-        if not path:
-            return
-        fields = self.export_fields()
-        with open(path, "w", newline="", encoding="utf-8-sig") as file:
-            writer = csv.writer(file)
-            writer.writerow([label for label, _ in fields])
-            writer.writerow([value for _, value in fields])
-        self.status_var.set("已导出 CSV")
-        self.status_time_var.set(Path(path).name)
 
     def export_excel(self):
         if not self.current_record:
@@ -922,22 +927,6 @@ class CurrencyConverterApp(tk.Tk):
             return
         self.write_xlsx(path, self.export_fields())
         self.status_var.set("已导出 Excel")
-        self.status_time_var.set(Path(path).name)
-
-    def export_pdf(self):
-        if not self.current_record:
-            self.status_var.set("当前没有可导出的报价分析")
-            return
-        path = filedialog.asksaveasfilename(
-            parent=self,
-            defaultextension=".pdf",
-            filetypes=[("PDF 文件", "*.pdf")],
-            initialfile=f"汇率报价分析_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-        )
-        if not path:
-            return
-        self.write_simple_pdf(path, self.quote_text())
-        self.status_var.set("已导出 PDF")
         self.status_time_var.set(Path(path).name)
 
     def export_fields(self):
@@ -956,7 +945,6 @@ class CurrencyConverterApp(tk.Tk):
             ("净收益/损失", record.get("net_cny", "")),
             ("风险判断", record.get("risk", "")),
             ("实时汇率日期", record.get("updated_at", "")),
-            ("备注", record.get("note", "")),
         ]
 
     def write_xlsx(self, path, fields):
@@ -1007,57 +995,15 @@ class CurrencyConverterApp(tk.Tk):
             ))
             workbook.writestr("xl/worksheets/sheet1.xml", sheet_xml)
 
-    def write_simple_pdf(self, path, text):
-        lines = text.splitlines()
-        content_lines = ["BT", "/F1 11 Tf", "50 790 Td", "14 TL"]
-        for index, line in enumerate(lines):
-            if index:
-                content_lines.append("T*")
-            encoded = line.encode("utf-16-be").hex().upper()
-            content_lines.append(f"<{encoded}> Tj")
-        content_lines.append("ET")
-        stream = "\n".join(content_lines).encode("ascii")
-        objects = [
-            b"<< /Type /Catalog /Pages 2 0 R >>",
-            b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 6 0 R >>",
-            b"<< /Type /Font /Subtype /Type0 /BaseFont /STSong-Light /Encoding /UniGB-UCS2-H /DescendantFonts [5 0 R] >>",
-            b"<< /Type /Font /Subtype /CIDFontType0 /BaseFont /STSong-Light /CIDSystemInfo << /Registry (Adobe) /Ordering (GB1) /Supplement 2 >> >>",
-            b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"\nendstream",
-        ]
-        data = bytearray(b"%PDF-1.4\n")
-        offsets = [0]
-        for index, obj in enumerate(objects, start=1):
-            offsets.append(len(data))
-            data.extend(f"{index} 0 obj\n".encode("ascii"))
-            data.extend(obj)
-            data.extend(b"\nendobj\n")
-        xref = len(data)
-        data.extend(f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode("ascii"))
-        for offset in offsets[1:]:
-            data.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
-        data.extend(f"trailer << /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF".encode("ascii"))
-        Path(path).write_bytes(bytes(data))
-
     def open_settings(self):
-        window = tk.Toplevel(self)
-        window.title("设置")
-        window.geometry(self.scaled_geometry(680, 640))
-        window.minsize(self.scaled(620), self.scaled(560))
-        window.resizable(True, True)
-        window.transient(self)
-        window.grab_set()
-        window.configure(bg=PALETTE["bg"])
-        if ICON_ICO_PATH.exists():
-            try:
-                window.iconbitmap(str(ICON_ICO_PATH))
-            except tk.TclError:
-                pass
-        if self.icon_image:
-            window.iconphoto(True, self.icon_image)
+        self.show_view("settings")
 
-        frame = ttk.Frame(window, style="Root.TFrame", padding=(28, 26, 28, 22))
-        frame.pack(fill="both", expand=True)
+    def create_settings_view(self, parent):
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_rowconfigure(0, weight=1)
+
+        frame = ttk.Frame(parent, style="Root.TFrame")
+        frame.grid(row=0, column=0, sticky="nsew")
         ttk.Label(frame, text="公司汇率与专业设置", style="Header.TLabel").pack(anchor="w")
         ttk.Label(frame, text="填写 1 单位外币对应多少人民币，并设置报价风控参数。", style="Body.TLabel").pack(anchor="w", pady=(4, 18))
 
@@ -1113,8 +1059,8 @@ class CurrencyConverterApp(tk.Tk):
 
         actions = ttk.Frame(frame, style="Root.TFrame")
         actions.pack(fill="x", pady=(18, 0))
-        ttk.Button(actions, text="取消", command=window.destroy).pack(side="right")
-        ttk.Button(actions, text="保存", style="Accent.TButton", command=lambda: self.save_settings_window(window, entries, setting_vars)).pack(side="right", padx=(0, 10))
+        ttk.Button(actions, text="返回换算", command=lambda: self.show_view("quote")).pack(side="right")
+        ttk.Button(actions, text="保存", style="Accent.TButton", command=lambda: self.save_settings_window(None, entries, setting_vars)).pack(side="right", padx=(0, 10))
 
     def save_settings_window(self, window, entries, setting_vars):
         new_rates = {}
@@ -1159,7 +1105,8 @@ class CurrencyConverterApp(tk.Tk):
         })
         self.save_settings()
         self.recalculate()
-        window.destroy()
+        if window is not None:
+            window.destroy()
         self.status_var.set("设置已保存")
 
 
